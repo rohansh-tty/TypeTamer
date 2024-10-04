@@ -2,7 +2,7 @@
 ## Unit Test by running ast 
 import copy
 import ast
-from mylinter import MutableDefaultArgsChecker, MultiTypeConstantReturnChecker, checker_info
+from main import MutableDefaultArgsChecker, MultiTypeConstantReturnChecker, checker_info
 
 
 #### MutableDefaultArgsChecker Tests ####

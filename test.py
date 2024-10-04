@@ -16,11 +16,12 @@ def test_with_match_return()->int:
 def test_with_mismatch_return()->int:
     return '2'
 
+
 def test_with_union_single_return(value)->Union[int,str]:
     if value == 'Admin':
         return True
     return 'Access Denied' 
-    ss
+    
 def test_with_union_multiple_return(value)->Union[int,str]:
     if value == 'Admin':
         return True

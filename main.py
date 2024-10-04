@@ -51,7 +51,7 @@ class Linter:
         with open(source_path) as source_file:
             source_code = source_file.read()
             
-        with open('output.txt', 'w') as f:
+        with open('output.txt', 'a') as f:
             tree = ast.parse(source_code)
             for checker in self.checkers:
                 f.write(f'checker name: {checker.__class__.__name__}\n')
@@ -61,7 +61,11 @@ class Linter:
                 self.print_violations(checker, file_name)
                 # write output to file
                 for violation in checker.violations:
-                    f.write(f"{violation.node.lineno}:{violation.node.col_offset}:{violation.message}\n")
+                    node = violation.node
+                    message = violation.message
+                    f.writelines(f"{file_name}:{node.lineno}:{node.col_offset}:{node.name}:"
+                f"[{checker.issue_code}] - {message}")
+                    f.write('\n')
 
 class MutableDefaultArgsChecker(Checker):
     """
