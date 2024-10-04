@@ -1,0 +1,15 @@
+checker name: MutableDefaultArgsChecker
+checker issue code: ML-100
+checker description: When defining a function with default arguments, Python evaluates the default values immediately. If you use a mutable object (like a list or dictionary) as a default value, it can cause unexpected behavior because the same object is reused across function calls. To avoid this, use immutable objects or create a new mutable object in the function body.
+test.py:32:0:test_with_mutable_literal:[ML-100] - Default argument is mutable, using None instead of List as default
+test.py:35:0:test_with_mutable_constructor:[ML-100] - Default argument is mutable, using None instead of dict as default
+test.py:41:0:test_with_constant:[ML-100] - Default argument is mutable, using None instead of list as default
+test.py:35:0:test_with_mutable_constructor:[ML-100] - Default argument is mutable, using None instead of list as default
+test.py:35:0:test_with_mutable_constructor:[ML-100] - Default argument is mutable, using None instead of set as default
+test.py:32:0:test_with_mutable_literal:[ML-100] - Default argument is mutable, using None instead of Dict as default
+checker name: MultiTypeConstantReturnChecker
+checker issue code: ML-200
+checker description: Since Python supports multiple return type, it is important to ensure that the function always return the same type of value hinted in type annotation. This is because the type of value returned by a function can affect the behavior of the program.
+test.py:16:0:test_with_mismatch_return:[ML-200] - Multiple Return Types: {'str'} with Type Annotations int
+test.py:25:0:test_with_union_multiple_return:[ML-200] - Multiple Return Types: {'str', 'bool'} with Union Type of ['int', 'str']
+test.py:20:0:test_with_union_single_return:[ML-200] - Multiple Return Types: {'str', 'bool'} with Union Type of ['int', 'str']

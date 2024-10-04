@@ -7,13 +7,14 @@ TypeTamer catches 2 types of Anti-Patterns:
 
 ## 1. Multiple Constant Return Type 
 
-Analyzer to catch functions with multiple return types
-
 ```
 def sample_func(value):
     if value == 'Admin':
         return 1 
     return 'Access Denied'
+
+def sample_func2(value)->int:
+    return '2'
 ```
 ### Why?
 
@@ -60,15 +61,13 @@ def get_value():
 
 def test_with_single_return(value):
     if value == 'Admin':
-        return get_value() # I am not traversing Call Statements, so I won't 
+        return get_value() # I am not traversing Call Statements
     return 'Access Denied'
 ```
 
 
 
 ## 2. Mutable Default Args 
-
-Analyzer to catch incorrect default arg, like using mutable instead of constant or none
 
 ```
 def sample_func(value=[]):
