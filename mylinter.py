@@ -5,6 +5,7 @@ import os
 import sys
 from typing import NamedTuple, Sequence
 
+generic_primitive_types = {'int', 'float', 'str', 'bool'}
 
 class Violation(NamedTuple):
     """
@@ -22,8 +23,9 @@ class Checker(ast.NodeVisitor):
     nodes that violate that lint rule.
     """
 
-    def __init__(self, issue_code: str):
+    def __init__(self, issue_code: str, description: str):
         self.issue_code = issue_code
+        self.description = description
         self.violations: set[Violation] = set()
 
 
@@ -48,17 +50,25 @@ class Linter:
 
         with open(source_path) as source_file:
             source_code = source_file.read()
+            
+        with open('output.txt', 'w') as f:
+            tree = ast.parse(source_code)
+            for checker in self.checkers:
+                f.write(f'checker name: {checker.__class__.__name__}\n')
+                f.write(f'checker issue code: {checker.issue_code}\n')
+                f.write(f'checker description: {checker.description}\n')
+                checker.visit(tree)
+                self.print_violations(checker, file_name)
+                # write output to file
+                for violation in checker.violations:
+                    f.write(f"{violation.node.lineno}:{violation.node.col_offset}:{violation.message}\n")
 
-        tree = ast.parse(source_code)
-        print(f'tree is {ast.dump(tree,indent=4)}')
-        for checker in self.checkers:
-            checker.visit(tree)
-            self.print_violations(checker, file_name)
-
-# Checker for default args, which ideally should be constant and not mutable 
 class MutableDefaultArgsChecker(Checker):
-    def __init__(self, issue_code: str):
-        super().__init__(issue_code)
+    """
+    Checker for default args, which ideally should be constant and not mutable 
+    """
+    def __init__(self, issue_code: str, description: str):
+        super().__init__(issue_code, description)
         self.current_function: ast.FunctionDef | None = None 
         self.default_args = set()
         
@@ -76,61 +86,17 @@ class MutableDefaultArgsChecker(Checker):
                 self.violations.add(Violation(node, f"Default argument is mutable, using None instead of {type(arg).__name__} as default"))
 
 
-class ConfusingTypeHintChecker(Checker):
-    def __init__(self, issue_code: str):
-        super().__init__(issue_code)
-        self.current_function: ast.FunctionDef | None = None 
-        self.return_types = set()
-        self.type_hints = set()
-        
-    def visit_FunctionDef(self, node: ast.FunctionDef):
-        if node.returns is not None:
-            self.type_hints.clear()
-            self.return_types.clear()
-            self.current_function = node
-            super().generic_visit(node)
-            self.type_hints.add(node.returns.id)
-            if self.type_hints != self.return_types:
-                self.violations.add(Violation(node, f"Confusing Type Hint: {self.type_hints}, while returning {self.return_types!r}"))
-
-    def visit_Return(self, node: ast.Return):
-        if self.current_function is None:
-            return
-        return_type = self.get_return_type(node.value)
-        if return_type is not None:
-            self.return_types.add(return_type)
-
-    def get_return_type(self, node):
-        if isinstance(node, ast.Call):
-            return self.get_function_return_type(node.func.value)
-        elif isinstance(node, ast.Constant):
-            return type(node.value)
-        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-            # check fucntion type annotations 
-            return self.get_return_type(node.id)
-        else:
-            return None
-      
-    def get_function_return_type(self, node):
-        if isinstance(node.func, ast.Name):
-            if node.func.id in {'int', 'float', 'str', 'bool'}:
-                return node.func.id
-        return any
-            
-
-
-generic_primitive_types = {'int', 'float', 'str', 'bool'}
-# handling only constant return types for now 
 class MultiTypeConstantReturnChecker(Checker):
-    def __init__(self, issue_code: str): 
-        super().__init__(issue_code)
+    """
+    Checker for return types, which ideally should be constant and consistent 
+    """
+    def __init__(self, issue_code: str, description: str): 
+        super().__init__(issue_code, description)
         self.return_types = set()
         self.current_function: ast.FunctionDef | None = None
         
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        # TODO: if Union return type, then we don't need to check
-        # TODO: if return type is primitive, and doesnt match the type of the return value, then we need to report it 
         self.current_function = node
         self.return_types.clear()
         super().generic_visit(node)
@@ -148,6 +114,7 @@ class MultiTypeConstantReturnChecker(Checker):
                     for t in self.return_types:
                         if t != node.returns.id:
                             self.violations.add(Violation(node, f"Multiple Return Types: {self.return_types!r} with Type Annotations {node.returns.id}"))
+                            
         # handling Union return type annotations
         elif isinstance(node.returns, ast.Subscript):
             if isinstance(node.returns.value, ast.Name):
@@ -173,20 +140,33 @@ class MultiTypeConstantReturnChecker(Checker):
         else:
             return None
       
-    def get_function_return_type(self, node):
-        if isinstance(node.func, ast.Name):
-            if node.func.id in generic_primitive_types:
-                return node.func.id
-        return any
-            
-        
+
+checker_info = {
+        "MutableDefaultArgsChecker": {
+            "description": "When defining a function with default arguments, Python evaluates the default values immediately. If you use a mutable object (like a list or dictionary) as a default value, it can cause unexpected behavior because the same object is reused across function calls. To avoid this, use immutable objects or create a new mutable object in the function body.",
+            "issue_code": "ML-100",
+            "checker": MutableDefaultArgsChecker
+        },
+        "MultiTypeConstantReturnChecker": {
+            "description": "Since Python supports multiple return type, it is important to ensure that the function always return the same type of value hinted in type annotation. This is because the type of value returned by a function can affect the behavior of the program.",
+            "issue_code": "ML-200",
+            "checker": MultiTypeConstantReturnChecker
+        }
+    }
+
 
 if __name__ == "__main__":
     source_paths = sys.argv[1:]
 
     linter = Linter()
-    linter.checkers.add(MutableDefaultArgsChecker(issue_code="W001"))
-    linter.checkers.add(MultiTypeConstantReturnChecker(issue_code="W002"))
+    
+    for k,v in checker_info.items():
+        issue_code = v["issue_code"]    
+        description = v["description"]
+        checker = v["checker"]
+        linter.checkers.add(checker(issue_code=issue_code, description=description))
+    
+    
 
     for source_path in source_paths:
         linter.run(source_path)

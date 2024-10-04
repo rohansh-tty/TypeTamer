@@ -20,7 +20,7 @@ def test_with_union_single_return(value)->Union[int,str]:
     if value == 'Admin':
         return True
     return 'Access Denied' 
-    
+    ss
 def test_with_union_multiple_return(value)->Union[int,str]:
     if value == 'Admin':
         return True
@@ -39,3 +39,4 @@ def test_with_none(l=None):
 
 def test_with_constant(l=1, d=list()):
     pass 
+
